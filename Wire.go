@@ -2,20 +2,19 @@
 // +build wireinject
 
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package main
@@ -40,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/infraConfig"
@@ -72,6 +72,7 @@ import (
 	"github.com/devtron-labs/devtron/api/terminal"
 	util5 "github.com/devtron-labs/devtron/api/util"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -121,9 +122,8 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -171,6 +171,7 @@ func InitializeApp() (*App, error) {
 		team.TeamsWireSet,
 		AuthWireSet,
 		util4.NewK8sUtil,
+		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
@@ -182,6 +183,7 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		util2.GetEnvironmentVariables,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
@@ -194,6 +196,9 @@ func InitializeApp() (*App, error) {
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
+
+		devtronResource.DevtronResourceWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -203,7 +208,6 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		// sql.GetConfig,
 		eClient.GetEventClientConfig,
-		util2.GetGlobalEnvVariables,
 		// sql.NewDbConnection,
 		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
@@ -224,6 +228,9 @@ func InitializeApp() (*App, error) {
 		router.NewPProfRouter,
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		// ---- pprof end ----
+
+		sql.NewTransactionUtilImpl,
+		wire.Bind(new(sql.TransactionWrapper), new(*sql.TransactionUtilImpl)),
 
 		trigger.NewPipelineRestHandler,
 		wire.Bind(new(trigger.PipelineTriggerRestHandler), new(*trigger.PipelineTriggerRestHandlerImpl)),
@@ -271,7 +278,7 @@ func InitializeApp() (*App, error) {
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
-		pipeline.GetDeploymentServiceTypeConfig,
+		//util2.GetEnvironmentVariables,
 
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
@@ -745,6 +752,7 @@ func InitializeApp() (*App, error) {
 
 		app.NewAppCrudOperationServiceImpl,
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
+		app.GetCrudOperationServiceConfig,
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 
@@ -827,7 +835,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		util2.GetDevtronSecretName,
+		//util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
@@ -920,8 +928,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(executors.SystemWorkflowExecutor), new(*executors.SystemWorkflowExecutorImpl)),
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
-		app.NewGitOpsManifestPushServiceImpl,
-		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
+		publish.NewGitOpsManifestPushServiceImpl,
+		wire.Bind(new(publish.GitOpsPushService), new(*publish.GitOpsManifestPushServiceImpl)),
 
 		// start: docker registry wire set injection
 		router.NewDockerRegRouterImpl,
@@ -947,12 +955,6 @@ func InitializeApp() (*App, error) {
 		resourceQualifiers.NewQualifierMappingServiceImpl,
 		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
 
-		repository9.NewDevtronResourceSearchableKeyRepositoryImpl,
-		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
-
-		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
-
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
 
@@ -963,6 +965,11 @@ func InitializeApp() (*App, error) {
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
+
+		appStoreRestHandler.AppStoreWireSet,
+
+		cel.NewCELServiceImpl,
+		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),
 	)
 	return &App{}, nil
 }
